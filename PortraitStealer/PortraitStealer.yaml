@@ -1,0 +1,7 @@
+name: PortraitStealer
+author: slightly
+punchline: Export other player's portrait data
+repo_url: https://github.com/BeSlightly/PortraitStealer
+icon_url: 
+description: A plugin to export other player's portraits to PortraitHelper strings.
+load_required_state: 0

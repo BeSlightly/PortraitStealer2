@@ -1,0 +1,24 @@
+<Project Sdk="Dalamud.NET.Sdk/13.1.0">
+    <PropertyGroup>
+        <Version>0.0.0.1</Version>
+        <Description>Character Portrait Stealer</Description>
+        <PackageProjectUrl>https://github.com/Slightlyxz/PortraitStealer</PackageProjectUrl>
+        <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+        <IsPackable>false</IsPackable>
+        <PluginName>PortraitStealer</PluginName>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <AssemblyName>$(PluginName)</AssemblyName>
+        <PackageId>$(PluginName)</PackageId>
+        <Product>$(PluginName)</Product>
+        <RootNamespace>$(PluginName)</RootNamespace>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+    </ItemGroup>
+    <ItemGroup>
+        <Reference Include="SharpDX" Private="false" />
+        <Reference Include="SharpDX.Direct3D11" Private="false" />
+        <Reference Include="SharpDX.DXGI" Private="false" />
+        <ProjectReference Include="../OtterGui/OtterGui.csproj" />
+    </ItemGroup>
+</Project>

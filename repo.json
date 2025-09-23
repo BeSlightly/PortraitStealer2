@@ -1,0 +1,28 @@
+[
+  {
+    "Author": "BeSlightly",
+    "Name": "Portrait Stealer",
+    "InternalName": "PortraitStealer",
+    "AssemblyVersion": "0.0.0.1",
+    "Description": "A plugin to export other player's portraits to PortraitHelper strings.",
+    "RepoUrl": "https://github.com/BeSlightly/PortraitStealer",
+    "ApplicableVersion": "any",
+    "Tags": [
+      "portrait"
+    ],
+    "DalamudApiLevel": 13,
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
+    "LoadPriority": 0,
+    "Punchline": "Export other player's portrait data",
+    "AcceptsFeedback": false,
+    "IsTestingExclusive": "False",
+    "DownloadLinkInstall": "",
+    "DownloadLinkUpdate": "",
+    "DownloadLinkTesting": "",
+    "IconUrl": "",
+    "LastUpdate": 1758565450,
+    "Changelog": ""
+  }
+]
