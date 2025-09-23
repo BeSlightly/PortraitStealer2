@@ -1,6 +1,6 @@
 <div align="center">
 
-Portrait Stealer Plugin for FFXIV inspired by CharaCradThief <br>
+Portrait Stealer Plugin for FFXIV inspired by [CharaCradThief by Errerer](https://github.com/Errerer/DalamudPlugins)<br>
 Export other players' duty or adventurer plate portraits to HaselTweaks strings.
 
 Repo Url:
