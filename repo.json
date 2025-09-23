@@ -5,7 +5,7 @@
     "InternalName": "PortraitStealer",
     "AssemblyVersion": "0.0.0.1",
     "Description": "A plugin to export other player's portraits to PortraitHelper strings.",
-    "RepoUrl": "https://github.com/BeSlightly/PortraitStealer",
+    "RepoUrl": "https://github.com/BeSlightly/PortraitStealer2",
     "ApplicableVersion": "any",
     "Tags": [
       "portrait"
