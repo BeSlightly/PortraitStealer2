@@ -18,11 +18,11 @@
     "Punchline": "Export other player's portrait data",
     "AcceptsFeedback": false,
     "IsTestingExclusive": "False",
-    "DownloadLinkInstall": "",
-    "DownloadLinkUpdate": "",
-    "DownloadLinkTesting": "",
+    "DownloadLinkInstall": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.1/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.1/latest.zip",
+    "DownloadLinkTesting": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.1/latest.zip",
     "IconUrl": "",
-    "LastUpdate": 1758565450,
+    "LastUpdate": 1758619198,
     "Changelog": ""
   }
 ]
