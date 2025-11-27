@@ -38,7 +38,7 @@ public sealed class Plugin : IDalamudPlugin
     internal static IGameGui GameGui { get; private set; } = null!;
 
     [PluginService]
-    internal static IClientState ClientState { get; private set; } = null!;
+    internal static IPlayerState PlayerState { get; private set; } = null!;
 
     public readonly PortraitDataService PortraitDataService;
     private readonly PresetSerializer _presetSerializer;
@@ -59,7 +59,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin()
     {
-        PortraitDataService = new PortraitDataService(DataManager, Log, GameGui, ClientState);
+        PortraitDataService = new PortraitDataService(DataManager, Log, GameGui, PlayerState);
         _presetSerializer = new PresetSerializer(Log);
         _portraitCaptureService = new PortraitCaptureService(Log, PluginInterface, GameGui, DataManager, TextureProvider);
         DutySlotCacheService = new DutySlotCacheService(

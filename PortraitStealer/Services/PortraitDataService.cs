@@ -19,17 +19,17 @@ public unsafe class PortraitDataService
     private readonly IDataManager _dataManager;
     private readonly IPluginLog _log;
     private readonly IGameGui _gameGui;
-    private readonly IClientState _clientState;
+    private readonly IPlayerState _playerState;
 
     private readonly ConcurrentDictionary<byte, string> _classJobAbbrCache = new();
     private readonly Lumina.Excel.ExcelSheet<ClassJob>? _classJobSheet;
 
-    public PortraitDataService(IDataManager dataManager, IPluginLog log, IGameGui gameGui, IClientState clientState)
+    public PortraitDataService(IDataManager dataManager, IPluginLog log, IGameGui gameGui, IPlayerState playerState)
     {
         _dataManager = dataManager;
         _log = log;
         _gameGui = gameGui;
-        _clientState = clientState;
+        _playerState = playerState;
         try
         {
             _classJobSheet = _dataManager.GetExcelSheet<ClassJob>();
@@ -87,24 +87,28 @@ public unsafe class PortraitDataService
             bool isOwnPlate = false;
             try
             {
+                var localContentId = _playerState.IsLoaded ? _playerState.ContentId : 0;
+                var localPlayerName = _playerState.IsLoaded ? _playerState.CharacterName : string.Empty;
+                var plateContentId = storage->ContentId;
+
                 var nameFromStorage = storage->Name.ToString();
                 if (!string.IsNullOrEmpty(nameFromStorage))
                 {
                     playerName = nameFromStorage;
                     _log.Debug($"Extracted player name from adventurer plate storage: {playerName}");
 
-                    if (_clientState.LocalPlayer != null)
-                    {
-                        var localPlayerName = _clientState.LocalPlayer.Name.TextValue;
+                    if (localContentId != 0 && plateContentId != 0)
+                        isOwnPlate = plateContentId == localContentId;
+                    else if (!string.IsNullOrEmpty(localPlayerName))
                         isOwnPlate = string.Equals(playerName, localPlayerName, StringComparison.OrdinalIgnoreCase);
-                        _log.Debug($"Is own plate: {isOwnPlate} (local: {localPlayerName}, plate: {playerName})");
-                    }
+
+                    _log.Debug($"Is own plate: {isOwnPlate} (local: {localPlayerName}, plate: {playerName}, plateCID: {plateContentId:X})");
                 }
                 else
                 {
-                    if (_clientState.LocalPlayer != null)
+                    if (!string.IsNullOrEmpty(localPlayerName))
                     {
-                        playerName = _clientState.LocalPlayer.Name.TextValue;
+                        playerName = localPlayerName;
                         isOwnPlate = true;
                         _log.Debug($"Using local player name as fallback: {playerName}");
                     }
