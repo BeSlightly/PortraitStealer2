@@ -9,7 +9,6 @@ public unsafe partial class DutySlotCacheService
 {
     private void OnFrameworkUpdate(IFramework framework)
     {
-        AgentBannerInterface* agent = null;
         Storage* storage = null;
         bool isAgentValidNow = false;
         try
@@ -17,7 +16,7 @@ public unsafe partial class DutySlotCacheService
             var agentInterface = _gameGui.GetAgentById((int)AgentId.BannerParty);
             if (!agentInterface.IsNull && agentInterface.IsAgentActive)
             {
-                agent = (AgentBannerInterface*)agentInterface.Address;
+                var agent = (AgentBannerInterface*)agentInterface.Address;
                 if (agent->Data != null)
                 {
                     storage = agent->Data;

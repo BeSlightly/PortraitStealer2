@@ -14,7 +14,6 @@ public unsafe partial class DutySlotCacheService
     {
         int processedCount = 0;
         const int maxPerFrame = 1;
-        AgentBannerInterface* agentBannerInterface = null;
         Storage* currentStorage = null;
         bool isAgentValidNow = false;
 
@@ -23,7 +22,7 @@ public unsafe partial class DutySlotCacheService
             var agentInterface = _gameGui.GetAgentById((int)AgentId.BannerParty);
             if (!agentInterface.IsNull && agentInterface.IsAgentActive)
             {
-                agentBannerInterface = (AgentBannerInterface*)agentInterface.Address;
+                var agentBannerInterface = (AgentBannerInterface*)agentInterface.Address;
                 if (agentBannerInterface->Data != null)
                 {
                     currentStorage = agentBannerInterface->Data;
