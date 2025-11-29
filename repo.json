@@ -21,7 +21,7 @@
     "DownloadLinkInstall": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.1/latest.zip",
     "DownloadLinkUpdate": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.1/latest.zip",
     "DownloadLinkTesting": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.1/latest.zip",
-    "IconUrl": "",
+    "IconUrl": "https://raw.githubusercontent.com/BeSlightly/PortraitStealer2/main/images/logo.png",
     "LastUpdate": 1758619198,
     "Changelog": ""
   }
