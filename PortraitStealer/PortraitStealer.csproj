@@ -16,9 +16,7 @@
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
     <ItemGroup>
-        <Reference Include="SharpDX" Private="false" />
-        <Reference Include="SharpDX.Direct3D11" Private="false" />
-        <Reference Include="SharpDX.DXGI" Private="false" />
+        <Reference Include="TerraFX.Interop.Windows" HintPath="$(DalamudLibPath)TerraFX.Interop.Windows.dll" Private="false" />
         <ProjectReference Include="../OtterGui/OtterGui.csproj" />
     </ItemGroup>
 </Project>
