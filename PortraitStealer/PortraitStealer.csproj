@@ -1,16 +1,14 @@
 <Project Sdk="Dalamud.NET.Sdk/14.0.1">
     <PropertyGroup>
+        <Name>Portrait Stealer</Name>
         <Version>0.0.0.2</Version>
-        <Description>Character Portrait Stealer</Description>
-        <PackageProjectUrl>https://github.com/Slightlyxz/PortraitStealer</PackageProjectUrl>
-        <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
-        <IsPackable>false</IsPackable>
-        <PluginName>PortraitStealer</PluginName>
+        <Author>BeSlightly</Author>
+        <RepoUrl>https://github.com/BeSlightly/PortraitStealer2</RepoUrl>
+        <IconUrl>https://raw.githubusercontent.com/BeSlightly/PortraitStealer2/main/images/logo.png</IconUrl>
+        <Punchline>Export other player's portrait data</Punchline>
+        <Description>A plugin to export other player's portraits to PortraitHelper strings.</Description>
+        <Tags>portrait, stealer, portraitstealer</Tags>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <AssemblyName>$(PluginName)</AssemblyName>
-        <PackageId>$(PluginName)</PackageId>
-        <Product>$(PluginName)</Product>
-        <RootNamespace>$(PluginName)</RootNamespace>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
