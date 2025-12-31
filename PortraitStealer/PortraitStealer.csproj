@@ -15,6 +15,5 @@
     </ItemGroup>
     <ItemGroup>
         <Reference Include="TerraFX.Interop.Windows" HintPath="$(DalamudLibPath)TerraFX.Interop.Windows.dll" Private="false" />
-        <ProjectReference Include="../OtterGui/OtterGui.csproj" />
     </ItemGroup>
 </Project>

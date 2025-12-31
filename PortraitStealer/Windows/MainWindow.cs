@@ -4,11 +4,10 @@ using System.Linq;
 using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using Dalamud.Bindings.ImGui;
-using OtterGui.Raii;
-using OtterGui.Text;
 using PortraitStealer.Windows.Controls;
 using PortraitStealer.Services;
 

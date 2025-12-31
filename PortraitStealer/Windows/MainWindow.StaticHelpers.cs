@@ -3,9 +3,8 @@ using System.Numerics;
 using Dalamud.Interface;
 using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Bindings.ImGui;
-using OtterGui.Raii;
-using OtterGui.Text;
 using Half = System.Half; // Required for GetCacheEntryStatus
 
 namespace PortraitStealer.Windows;
