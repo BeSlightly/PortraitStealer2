@@ -38,6 +38,9 @@ public sealed class Plugin : IDalamudPlugin
     internal static IGameGui GameGui { get; private set; } = null!;
 
     [PluginService]
+    internal static IGameInteropProvider InteropProvider { get; private set; } = null!;
+
+    [PluginService]
     internal static IPlayerState PlayerState { get; private set; } = null!;
 
     public readonly PortraitDataService PortraitDataService;
@@ -61,7 +64,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         PortraitDataService = new PortraitDataService(DataManager, Log, GameGui, PlayerState);
         _presetSerializer = new PresetSerializer(Log);
-        _portraitCaptureService = new PortraitCaptureService(Log, PluginInterface, GameGui, DataManager, TextureProvider);
+        _portraitCaptureService = new PortraitCaptureService(Log, PluginInterface, GameGui, DataManager, TextureProvider, InteropProvider);
         DutySlotCacheService = new DutySlotCacheService(
             Log,
             Framework,
@@ -163,6 +166,7 @@ public sealed class Plugin : IDalamudPlugin
             byte[]? pixelData = null;
             int imageWidth = 0, imageHeight = 0;
             string? imagePath = null;
+            nint plateTexturePtr = nint.Zero;
 
             try
             {
@@ -187,38 +191,13 @@ public sealed class Plugin : IDalamudPlugin
                             info = PortraitDataService.TryGetAdventurerPlateData(out errorMessage);
                             if (info == null) return;
 
-                            Image<Bgra32>? image = null;
-                            if (info.Value.IsAdventurerPlate)
+                            if (info.Value.AdventurerPlateTexture == null || info.Value.AdventurerPlateTexture->D3D11Texture2D == null)
                             {
-                                image = _portraitCaptureService.CreateCompositedAdventurerPlateImageFromIcons(
-                                    info.Value.AdventurerPlateTexture,
-                                    info.Value.BannerFrame,
-                                    info.Value.BannerDecoration
-                                );
-                            }
-                            
-                            if (image == null)
-                            {
-                                image = _portraitCaptureService.GetAdventurerPlateImage(info.Value.AdventurerPlateTexture);
-                            }
-                            
-                            if (image == null)
-                            {
-                                errorMessage = "Failed to capture adventurer plate image.";
+                                errorMessage = "Portrait texture not found on Adventurer Plate.";
                                 return;
                             }
 
-                            imageWidth = image.Width;
-                            imageHeight = image.Height;
-                            pixelData = new byte[4 * imageWidth * imageHeight];
-                            image.CopyPixelDataTo(pixelData);
-                            image.Dispose();
-
-                            var cacheDir = AdventurerPlateCacheService.GetCacheDirectory();
-                            var playerName = info.Value.PlayerName ?? "Unknown";
-                            var safePlayerName = string.Join("_", playerName.Split(Path.GetInvalidFileNameChars()));
-                            var fileName = $"{safePlayerName}_{DateTime.Now:yyyyMMddHHmmss}.png";
-                            imagePath = Path.Combine(cacheDir, fileName);
+                            plateTexturePtr = (nint)info.Value.AdventurerPlateTexture->D3D11Texture2D;
                         }
                         catch (Exception ex)
                         {
@@ -245,6 +224,55 @@ public sealed class Plugin : IDalamudPlugin
                 PlateErrorMessage = errorMessage ?? "Unknown error occurred";
                 return;
             }
+
+            if (plateTexturePtr == nint.Zero)
+            {
+                PlateErrorMessage = "Portrait texture not found on Adventurer Plate.";
+                return;
+            }
+
+            Image<Bgra32>? baseImage = null;
+            Image<Bgra32>? image = null;
+            try
+            {
+                baseImage = await _portraitCaptureService.CaptureAdventurerPlateImageAsync(plateTexturePtr, cancellationToken);
+                if (baseImage == null)
+                {
+                    PlateErrorMessage = "Failed to capture adventurer plate image.";
+                    return;
+                }
+
+                if (info.Value.IsAdventurerPlate)
+                {
+                    image = _portraitCaptureService.CreateCompositedAdventurerPlateImageFromIcons(
+                        baseImage,
+                        info.Value.BannerFrame,
+                        info.Value.BannerDecoration
+                    );
+                }
+
+                if (image == null)
+                {
+                    image = baseImage;
+                    baseImage = null;
+                }
+
+                imageWidth = image.Width;
+                imageHeight = image.Height;
+                pixelData = new byte[4 * imageWidth * imageHeight];
+                image.CopyPixelDataTo(pixelData);
+            }
+            finally
+            {
+                baseImage?.Dispose();
+                image?.Dispose();
+            }
+
+            var cacheDir = AdventurerPlateCacheService.GetCacheDirectory();
+            var playerName = info.Value.PlayerName ?? "Unknown";
+            var safePlayerName = string.Join("_", playerName.Split(Path.GetInvalidFileNameChars()));
+            var fileName = $"{safePlayerName}_{DateTime.Now:yyyyMMddHHmmss}.png";
+            imagePath = Path.Combine(cacheDir, fileName);
 
             if (pixelData == null || string.IsNullOrEmpty(imagePath))
             {

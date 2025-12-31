@@ -1,8 +1,12 @@
 using System;
-using System.Buffers;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using Dalamud.Hooking;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using Dalamud.Utility.Signatures;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using FFXIVClientStructs.FFXIV.Client.Graphics.Render;
 using FFXIVClientStructs.FFXIV.Client.UI;
@@ -26,36 +30,53 @@ public unsafe class PortraitCaptureService : IDisposable
     private readonly IGameGui _gameGui;
     private readonly IDataManager _dataManager;
     private readonly ITextureProvider _textureProvider;
+    private readonly IGameInteropProvider _interopProvider;
     private readonly nint _deviceHandle;
-    private DateTime _suppressGpuUntil = DateTime.MinValue;
 
-    private ID3D11Texture2D* _reusableStagingTexture;
-    private D3D11_TEXTURE2D_DESC _reusableStagingDesc;
-    private readonly object _stagingTextureLock = new();
+    private readonly object _captureLock = new();
+    private readonly object _pendingCaptureLock = new();
+    private PendingCapture? _pendingCapture;
+    private static readonly TimeSpan CaptureDelay = TimeSpan.FromMilliseconds(200);
 
-    public PortraitCaptureService(IPluginLog log, IDalamudPluginInterface pluginInterface, IGameGui gameGui, IDataManager dataManager, ITextureProvider textureProvider)
+    private delegate void ImmediateContextProcessCommands(ImmediateContext* commands, RenderCommandBufferGroup* bufferGroup, uint a3);
+
+    [Signature("E8 ?? ?? ?? ?? 48 8B 4B 30 FF 15 ?? ?? ?? ??", DetourName = nameof(OnImmediateContextProcessCommands))]
+    private readonly Hook<ImmediateContextProcessCommands>? _immediateContextProcessCommandsHook = null;
+
+    public PortraitCaptureService(IPluginLog log, IDalamudPluginInterface pluginInterface, IGameGui gameGui, IDataManager dataManager, ITextureProvider textureProvider, IGameInteropProvider interopProvider)
     {
         _log = log;
         _pluginInterface = pluginInterface;
         _gameGui = gameGui;
         _dataManager = dataManager;
         _textureProvider = textureProvider;
+        _interopProvider = interopProvider;
 
         _deviceHandle = _pluginInterface.UiBuilder.DeviceHandle;
         if (_deviceHandle == nint.Zero)
             _log.Error("Failed to get D3D11 device handle. Portrait capture will not work.");
+
+        try
+        {
+            _interopProvider.InitializeFromAttributes(this);
+            _immediateContextProcessCommandsHook?.Enable();
+        }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "Failed to initialize render thread hook for portrait capture.");
+        }
     }
 
     public void Dispose()
     {
-        lock (_stagingTextureLock)
+        _immediateContextProcessCommandsHook?.Dispose();
+        PendingCapture? pending = null;
+        lock (_pendingCaptureLock)
         {
-            if (_reusableStagingTexture != null)
-            {
-                _reusableStagingTexture->Release();
-                _reusableStagingTexture = null;
-            }
+            pending = _pendingCapture;
+            _pendingCapture = null;
         }
+        pending?.Complete(null);
     }
 
     public Image<Bgra32>? GetAdventurerPlateImage(Texture* portraitTexture)
@@ -64,7 +85,10 @@ public unsafe class PortraitCaptureService : IDisposable
         if (portraitTexture == null || portraitTexture->D3D11Texture2D == null) return null;
 
         var texture = (ID3D11Texture2D*)portraitTexture->D3D11Texture2D;
-        return ProcessTexture(texture, "Adventurer Plate");
+        lock (_captureLock)
+        {
+            return ReadTextureToImage(texture, "Adventurer Plate");
+        }
     }
 
     public Image<Bgra32>? GetDutyPortraitImage(int partySlotIndex)
@@ -88,211 +112,233 @@ public unsafe class PortraitCaptureService : IDisposable
         if (charaViewTexture == null || charaViewTexture->D3D11Texture2D == null) return null;
 
         var texture = (ID3D11Texture2D*)charaViewTexture->D3D11Texture2D;
-        return ProcessTexture(texture, $"Duty Portrait (Slot {partySlotIndex + 1})");
+        lock (_captureLock)
+        {
+            return ReadTextureToImage(texture, $"Duty Portrait (Slot {partySlotIndex + 1})");
+        }
     }
 
-    private Image<Bgra32>? ProcessTexture(ID3D11Texture2D* texture, string captureContext)
+    public Task<Image<Bgra32>?> CaptureAdventurerPlateImageAsync(nint texturePointer, CancellationToken cancellationToken)
     {
-        byte[]? rentedBuffer = null;
-        byte[]? rentedTightBuffer = null;
-        D3D11_MAPPED_SUBRESOURCE mapped = default;
-        bool isMapped = false;
-        ID3D11Texture2D* currentStagingTexture = null;
-        ID3D11DeviceContext* deviceContext = null;
+        if (_deviceHandle == nint.Zero || texturePointer == nint.Zero)
+        {
+            return Task.FromResult<Image<Bgra32>?>(null);
+        }
 
+        if (_immediateContextProcessCommandsHook == null)
+        {
+            Image<Bgra32>? image;
+            lock (_captureLock)
+            {
+                image = ReadTextureToImage((ID3D11Texture2D*)texturePointer, "Adventurer Plate");
+            }
+            return Task.FromResult(image);
+        }
+
+        var sourceTexture = (ID3D11Texture2D*)texturePointer;
+        sourceTexture->AddRef();
+        var pending = new PendingCapture(sourceTexture, "Adventurer Plate", cancellationToken);
+
+        lock (_pendingCaptureLock)
+        {
+            if (_pendingCapture != null)
+            {
+                pending.Complete(null);
+                return Task.FromResult<Image<Bgra32>?>(null);
+            }
+
+            _pendingCapture = pending;
+        }
+
+        return pending.Task;
+    }
+
+    private void OnImmediateContextProcessCommands(ImmediateContext* commands, RenderCommandBufferGroup* bufferGroup, uint a3)
+    {
         try
         {
-            if (DateTime.UtcNow < _suppressGpuUntil)
-            {
-                _log.Debug($"ProcessTexture: Suppressing GPU work during cooldown for {captureContext}.");
-                return null;
-            }
-
-            var device = (ID3D11Device*)_deviceHandle;
-            if (device == null)
-            {
-                _log.Error($"ProcessTexture: Device is null for {captureContext}.");
-                return null;
-            }
-
-            if (texture == null)
-                return null;
-
-            D3D11_TEXTURE2D_DESC desc;
-            texture->GetDesc(&desc);
-            
-            if (desc.SampleDesc.Count != 1)
-            {
-                _log.Warning($"ProcessTexture: {captureContext} texture is multisampled (SampleDesc.Count = {desc.SampleDesc.Count}); not supported.");
-                return null;
-            }
-
-            if (desc.Format == DXGI_FORMAT.DXGI_FORMAT_BC7_UNORM)
-            {
-                _log.Warning($@"Unsupported compressed format for {captureContext}: {desc.Format}");
-                return null;
-            }
-            
-            if (desc.Format != DXGI_FORMAT.DXGI_FORMAT_B8G8R8A8_UNORM && desc.Format != DXGI_FORMAT.DXGI_FORMAT_R8G8B8A8_UNORM)
-            {
-                _log.Warning($"ProcessTexture: {captureContext} texture has unsupported format ({desc.Format})");
-                return null;
-            }
-
-            lock (_stagingTextureLock)
-            {
-                if (_reusableStagingTexture == null || _reusableStagingDesc.Width != desc.Width || _reusableStagingDesc.Height != desc.Height || _reusableStagingDesc.Format != desc.Format)
-                {
-                    if (_reusableStagingTexture != null)
-                    {
-                        _reusableStagingTexture->Release();
-                        _reusableStagingTexture = null;
-                    }
-
-                    _reusableStagingDesc = desc;
-                    _reusableStagingDesc.MipLevels = 1;
-                    _reusableStagingDesc.ArraySize = 1;
-                    _reusableStagingDesc.SampleDesc = new DXGI_SAMPLE_DESC { Count = 1, Quality = 0 };
-                    _reusableStagingDesc.Usage = D3D11_USAGE.D3D11_USAGE_STAGING;
-                    _reusableStagingDesc.BindFlags = 0;
-                    _reusableStagingDesc.CPUAccessFlags = (uint)D3D11_CPU_ACCESS_FLAG.D3D11_CPU_ACCESS_READ;
-                    _reusableStagingDesc.MiscFlags = 0;
-
-                    try
-                    {
-                        ID3D11Texture2D* stagingTexture;
-                        var stagingDesc = _reusableStagingDesc;
-                        var hr = device->CreateTexture2D(&stagingDesc, null, &stagingTexture);
-                        if (hr < 0 || stagingTexture == null)
-                        {
-                            _log.Error($"Failed to create/resize reusable staging texture for {captureContext}. HRESULT: 0x{(int)hr:X8}");
-                            _reusableStagingTexture = null;
-                            _suppressGpuUntil = DateTime.UtcNow.AddSeconds(2);
-                            return null;
-                        }
-
-                        _reusableStagingTexture = stagingTexture;
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.Error(ex, $"Failed to create/resize reusable staging texture for {captureContext}.");
-                        _reusableStagingTexture = null;
-                        return null;
-                    }
-                }
-                currentStagingTexture = _reusableStagingTexture;
-            }
-
-            if (currentStagingTexture == null || device == null)
-            {
-                _log.Error($"Staging texture or device is null after lock for {captureContext}.");
-                return null;
-            }
-
-            try
-            {
-                device->GetImmediateContext(&deviceContext);
-                if (deviceContext == null)
-                {
-                    _log.Error($"ProcessTexture: Failed to get immediate context for {captureContext}.");
-                    return null;
-                }
-
-                deviceContext->CopyResource((ID3D11Resource*)currentStagingTexture, (ID3D11Resource*)texture);
-
-                var hr = deviceContext->Map((ID3D11Resource*)currentStagingTexture, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mapped);
-                if (hr < 0)
-                {
-                    _log.Warning($"ProcessTexture: Failed to map staging texture for {captureContext}. HRESULT: 0x{(int)hr:X8}");
-                    lock (_stagingTextureLock)
-                    {
-                        if (_reusableStagingTexture != null)
-                        {
-                            _reusableStagingTexture->Release();
-                            _reusableStagingTexture = null;
-                        }
-                    }
-                    _suppressGpuUntil = DateTime.UtcNow.AddSeconds(2);
-                    return null;
-                }
-
-                isMapped = true;
-            }
-            catch (Exception ex)
-            {
-                _log.Warning(ex, $@"DirectX error detected during {captureContext} texture processing. Suppressing GPU work briefly and resetting staging texture.");
-                lock (_stagingTextureLock)
-                {
-                    if (_reusableStagingTexture != null)
-                    {
-                        _reusableStagingTexture->Release();
-                        _reusableStagingTexture = null;
-                    }
-                }
-                _suppressGpuUntil = DateTime.UtcNow.AddSeconds(2);
-                return null;
-            }
-
-            if (mapped.pData == null) return null;
-
-            int width = checked((int)desc.Width);
-            int height = checked((int)desc.Height);
-            int stride = checked((int)mapped.RowPitch);
-            int expectedBytesPerRow = checked(width * 4);
-            int bufferSize = checked(height * stride);
-
-            if (stride < expectedBytesPerRow || bufferSize <= 0)
-            {
-                deviceContext->Unmap((ID3D11Resource*)currentStagingTexture, 0);
-                isMapped = false;
-                return null;
-            }
-
-            rentedBuffer = ArrayPool<byte>.Shared.Rent(bufferSize);
-            System.Runtime.InteropServices.Marshal.Copy((nint)mapped.pData, rentedBuffer, 0, bufferSize);
-            deviceContext->Unmap((ID3D11Resource*)currentStagingTexture, 0);
-            isMapped = false;
-
-            Image<Bgra32> imageSharpImage;
-            int actualPixelDataSize = checked(width * height * 4);
-
-            if (stride == expectedBytesPerRow)
-            {
-                imageSharpImage = Image.LoadPixelData<Bgra32>(rentedBuffer.AsSpan(0, actualPixelDataSize), width, height);
-            }
-            else
-            {
-                rentedTightBuffer = ArrayPool<byte>.Shared.Rent(actualPixelDataSize);
-                var tightBufferSpan = rentedTightBuffer.AsSpan(0, actualPixelDataSize);
-                for (int y = 0; y < height; y++)
-                {
-                    rentedBuffer.AsSpan(y * stride, expectedBytesPerRow).CopyTo(tightBufferSpan.Slice(y * expectedBytesPerRow, expectedBytesPerRow));
-                }
-                imageSharpImage = Image.LoadPixelData<Bgra32>(tightBufferSpan, width, height);
-            }
-            return imageSharpImage;
+            TryProcessPendingCapture();
         }
         catch (Exception ex)
         {
-            _log.Error(ex, $"General Error processing {captureContext} texture.");
-            return null;
+            _log.Error(ex, "Exception during OnImmediateContextProcessCommands");
+        }
+
+        _immediateContextProcessCommandsHook!.Original(commands, bufferGroup, a3);
+    }
+
+    private void TryProcessPendingCapture()
+    {
+        PendingCapture? pending = null;
+        lock (_pendingCaptureLock)
+        {
+            if (_pendingCapture == null)
+                return;
+
+            if (DateTime.UtcNow - _pendingCapture.RequestedAtUtc < CaptureDelay)
+                return;
+
+            pending = _pendingCapture;
+            _pendingCapture = null;
+        }
+
+        if (pending == null)
+            return;
+
+        if (pending.CancellationToken.IsCancellationRequested)
+        {
+            pending.Complete(null);
+            return;
+        }
+
+        Image<Bgra32>? image = null;
+        try
+        {
+            lock (_captureLock)
+            {
+                image = ReadTextureToImage(pending.SourceTexture, pending.Context);
+            }
         }
         finally
         {
-            if (isMapped && currentStagingTexture != null && deviceContext != null)
-            {
-                try { deviceContext->Unmap((ID3D11Resource*)currentStagingTexture, 0); }
-                catch (Exception unmapEx) { _log.Warning(unmapEx, "Exception during final UnmapSubresource."); }
-            }
-            if (rentedBuffer != null) ArrayPool<byte>.Shared.Return(rentedBuffer);
-            if (rentedTightBuffer != null) ArrayPool<byte>.Shared.Return(rentedTightBuffer);
-
-            if (deviceContext != null)
-                deviceContext->Release();
+            pending.Complete(image);
         }
     }
 
-    
+    private Image<Bgra32>? ReadTextureToImage(ID3D11Texture2D* texture, string captureContext)
+    {
+        if (_deviceHandle == nint.Zero || texture == null) return null;
+
+        var device = (ID3D11Device*)_deviceHandle;
+        if (device == null)
+        {
+            _log.Error($"ReadTextureToImage: Device is null for {captureContext}.");
+            return null;
+        }
+
+        D3D11_TEXTURE2D_DESC desc;
+        texture->GetDesc(&desc);
+        
+        if (desc.SampleDesc.Count != 1)
+        {
+            _log.Warning($"ReadTextureToImage: {captureContext} texture is multisampled (SampleDesc.Count = {desc.SampleDesc.Count}); not supported.");
+            return null;
+        }
+
+        if (desc.Format == DXGI_FORMAT.DXGI_FORMAT_BC7_UNORM)
+        {
+            _log.Warning($@"Unsupported compressed format for {captureContext}: {desc.Format}");
+            return null;
+        }
+        
+        if (desc.Format != DXGI_FORMAT.DXGI_FORMAT_B8G8R8A8_UNORM && desc.Format != DXGI_FORMAT.DXGI_FORMAT_R8G8B8A8_UNORM)
+        {
+            _log.Warning($"ReadTextureToImage: {captureContext} texture has unsupported format ({desc.Format})");
+            return null;
+        }
+
+        var stagingDesc = new D3D11_TEXTURE2D_DESC
+        {
+            ArraySize = 1,
+            BindFlags = 0,
+            CPUAccessFlags = (uint)D3D11_CPU_ACCESS_FLAG.D3D11_CPU_ACCESS_READ,
+            Format = desc.Format,
+            Height = desc.Height,
+            Width = desc.Width,
+            MipLevels = 1,
+            MiscFlags = desc.MiscFlags,
+            SampleDesc = new DXGI_SAMPLE_DESC { Count = 1, Quality = 0 },
+            Usage = D3D11_USAGE.D3D11_USAGE_STAGING
+        };
+
+        ID3D11Texture2D* stagingTexture;
+        var hr = device->CreateTexture2D(&stagingDesc, null, &stagingTexture);
+        if (hr < 0 || stagingTexture == null)
+        {
+            _log.Warning($"ReadTextureToImage: Failed to create staging texture for {captureContext}. HRESULT: 0x{(int)hr:X8}");
+            return null;
+        }
+
+        ID3D11DeviceContext* deviceContext = null;
+        device->GetImmediateContext(&deviceContext);
+        if (deviceContext == null)
+        {
+            stagingTexture->Release();
+            return null;
+        }
+
+        deviceContext->CopyResource((ID3D11Resource*)stagingTexture, (ID3D11Resource*)texture);
+
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        hr = deviceContext->Map((ID3D11Resource*)stagingTexture, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mapped);
+        if (hr < 0 || mapped.pData == null)
+        {
+            deviceContext->Release();
+            stagingTexture->Release();
+            return null;
+        }
+
+        try
+        {
+            var rowPitch = (int)mapped.RowPitch;
+            var height = (int)desc.Height;
+            var width = (int)desc.Width;
+            const int bytesPerPixel = 4;
+
+            var result = new byte[width * height * bytesPerPixel];
+            var srcPtr = (byte*)mapped.pData;
+
+            for (var y = 0; y < height; y++)
+            {
+                Marshal.Copy((nint)(srcPtr + y * rowPitch), result, y * width * bytesPerPixel, width * bytesPerPixel);
+            }
+
+            if (desc.Format == DXGI_FORMAT.DXGI_FORMAT_R8G8B8A8_UNORM)
+            {
+                using var rgbaImage = Image.LoadPixelData<Rgba32>(result, width, height);
+                return rgbaImage.CloneAs<Bgra32>();
+            }
+
+            return Image.LoadPixelData<Bgra32>(result, width, height);
+        }
+        finally
+        {
+            deviceContext->Unmap((ID3D11Resource*)stagingTexture, 0);
+            deviceContext->Release();
+            stagingTexture->Release();
+        }
+    }
+
+    private sealed class PendingCapture
+    {
+        private ID3D11Texture2D* _sourceTexture;
+        private readonly TaskCompletionSource<Image<Bgra32>?> _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public PendingCapture(ID3D11Texture2D* sourceTexture, string context, CancellationToken cancellationToken)
+        {
+            _sourceTexture = sourceTexture;
+            Context = context;
+            CancellationToken = cancellationToken;
+            RequestedAtUtc = DateTime.UtcNow;
+        }
+
+        public ID3D11Texture2D* SourceTexture => _sourceTexture;
+        public string Context { get; }
+        public CancellationToken CancellationToken { get; }
+        public DateTime RequestedAtUtc { get; }
+        public Task<Image<Bgra32>?> Task => _tcs.Task;
+
+        public void Complete(Image<Bgra32>? image)
+        {
+            _tcs.TrySetResult(image);
+            if (_sourceTexture != null)
+            {
+                _sourceTexture->Release();
+                _sourceTexture = null;
+            }
+        }
+    }
+
 
     public Image<Bgra32>? CreateCompositedAdventurerPlateImageFromIcons(Texture* portraitTexture, ushort bannerFrame, ushort bannerDecoration)
     {
@@ -300,13 +346,26 @@ public unsafe class PortraitCaptureService : IDisposable
         {
             _log.Debug($"CreateCompositedAdventurerPlateImageFromIcons: Loading icons for BannerFrame {bannerFrame}, BannerDecoration {bannerDecoration}");
             
-            var portraitImage = GetAdventurerPlateImage(portraitTexture);
+            using var portraitImage = GetAdventurerPlateImage(portraitTexture);
             if (portraitImage == null)
             {
                 _log.Warning("CreateCompositedAdventurerPlateImageFromIcons: Failed to get portrait image");
                 return null;
             }
 
+            return CreateCompositedAdventurerPlateImageFromIcons(portraitImage, bannerFrame, bannerDecoration);
+        }
+        catch (Exception ex)
+        {
+            _log.Error(ex, "CreateCompositedAdventurerPlateImageFromIcons: Exception during icon-based compositing");
+            return null;
+        }
+    }
+
+    public Image<Bgra32>? CreateCompositedAdventurerPlateImageFromIcons(Image<Bgra32> portraitImage, ushort bannerFrame, ushort bannerDecoration)
+    {
+        try
+        {
             Image<Bgra32>? borderImage = null;
             if (bannerFrame != 0)
             {
@@ -360,8 +419,6 @@ public unsafe class PortraitCaptureService : IDisposable
                 _log.Debug("CreateCompositedAdventurerPlateImageFromIcons: Applied decoration layer");
                 decorationImage.Dispose();
             }
-
-            portraitImage.Dispose();
 
             _log.Debug("CreateCompositedAdventurerPlateImageFromIcons: Successfully composited adventurer plate using icon approach");
             return compositedImage;
