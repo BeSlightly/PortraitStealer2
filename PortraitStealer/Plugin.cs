@@ -48,10 +48,13 @@ public sealed class Plugin : IDalamudPlugin
     public readonly DutySlotCacheService DutySlotCacheService;
     private readonly PortraitCaptureService _portraitCaptureService;
     public readonly AdventurerPlateCacheService AdventurerPlateCacheService;
+    public readonly Configuration Configuration;
+    private volatile bool _pendingAdventurerPlateCopy;
 
     private const string CommandName = "/psteal";
     private readonly WindowSystem _windowSystem = new("PortraitStealer");
     private readonly MainWindow _mainWindow;
+    private readonly AdventurerPlateCaptureOverlay _adventurerPlateCaptureOverlay;
 
     public StolenPortraitInfo? PlateStolenInfo { get; private set; } = null;
     public string? PlateErrorMessage { get; private set; } = null;
@@ -62,6 +65,9 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin()
     {
+        Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        Configuration.Initialize(PluginInterface);
+
         PortraitDataService = new PortraitDataService(DataManager, Log, GameGui, PlayerState);
         _presetSerializer = new PresetSerializer(Log);
         _portraitCaptureService = new PortraitCaptureService(Log, PluginInterface, GameGui, DataManager, TextureProvider, InteropProvider);
@@ -75,7 +81,9 @@ public sealed class Plugin : IDalamudPlugin
         );
         AdventurerPlateCacheService = new AdventurerPlateCacheService(Log, PluginInterface);
         _mainWindow = new MainWindow(this);
+        _adventurerPlateCaptureOverlay = new AdventurerPlateCaptureOverlay(this);
         _windowSystem.AddWindow(_mainWindow);
+        _windowSystem.AddWindow(_adventurerPlateCaptureOverlay);
         CommandManager.AddHandler(
             CommandName,
             new CommandInfo(OnCommand) { HelpMessage = "Toggle Portrait Stealer window" }
@@ -118,6 +126,7 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.RemoveHandler(CommandName);
         _windowSystem.RemoveAllWindows();
         _mainWindow?.Dispose();
+        _adventurerPlateCaptureOverlay?.Dispose();
         DutySlotCacheService?.Dispose();
         _portraitCaptureService?.Dispose();
         AdventurerPlateCacheService?.Dispose();
@@ -341,6 +350,31 @@ public sealed class Plugin : IDalamudPlugin
 
     public string? GeneratePresetString(StolenPortraitInfo info) =>
         _presetSerializer.GeneratePresetString(info);
+
+    internal void RequestAdventurerPlateCopyAfterCapture()
+    {
+        _pendingAdventurerPlateCopy = true;
+    }
+
+    internal bool TryConsumePendingAdventurerPlateCopy(out StolenPortraitInfo info)
+    {
+        if (!_pendingAdventurerPlateCopy || PlateStolenInfo == null || IsCapturingAdventurerPlate)
+        {
+            info = default;
+            return false;
+        }
+
+        _pendingAdventurerPlateCopy = false;
+        info = PlateStolenInfo.Value;
+        return true;
+    }
+
+    internal bool HasPendingAdventurerPlateCopy => _pendingAdventurerPlateCopy;
+
+    internal void ClearPendingAdventurerPlateCopy()
+    {
+        _pendingAdventurerPlateCopy = false;
+    }
 
     public void ClearPlateState()
     {

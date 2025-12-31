@@ -47,7 +47,7 @@ public partial class MainWindow
         using (var disabled = ImRaii.Disabled(!_isAgentCharaCardValid || isCapturing))
         {
             var captureIcon = isCapturing ? FontAwesomeIcon.Spinner : FontAwesomeIcon.Camera;
-            var captureText = isCapturing ? "Capturing..." : "Capture Plate Portrait";
+            var captureText = isCapturing ? "Capturing..." : "Capture Portrait";
             
             if (
                 DrawIconButton(
@@ -66,7 +66,7 @@ public partial class MainWindow
         }
 
         ImGui.SameLine();
-        
+
         if (
             DrawIconButton(
                 FontAwesomeIcon.TrashAlt,
@@ -80,6 +80,14 @@ public partial class MainWindow
                 }
             )
         ) { }
+
+        ImGui.SameLine(0, MediumSpacing * ImUtf8.GlobalScale);
+        var showOverlayButton = _plugin.Configuration.ShowCaptureButtonOnAdventurerPlate;
+        if (ImGui.Checkbox("Show capture button on plate", ref showOverlayButton))
+        {
+            _plugin.Configuration.ShowCaptureButtonOnAdventurerPlate = showOverlayButton;
+            _plugin.Configuration.Save();
+        }
 
         if (captureButtonHovered)
         {
@@ -323,7 +331,7 @@ public partial class MainWindow
             cachedPlates.Any() 
                 ? "Select an adventurer plate from the list to view details."
                 : _isAgentCharaCardValid
-                    ? "Click 'Capture Plate Portrait' above to begin."
+                    ? "Click 'Capture Portrait' above to begin."
                     : "Open your Adventurer Plate first, then capture to populate the list.",
             availablePaneHeight
         );

@@ -1,7 +1,7 @@
 <Project Sdk="Dalamud.NET.Sdk/14.0.1">
     <PropertyGroup>
         <Name>Portrait Stealer</Name>
-        <Version>0.0.0.3</Version>
+        <Version>0.0.0.4</Version>
         <Author>BeSlightly</Author>
         <RepoUrl>https://github.com/BeSlightly/PortraitStealer2</RepoUrl>
         <IconUrl>https://raw.githubusercontent.com/BeSlightly/PortraitStealer2/main/images/logo.png</IconUrl>
