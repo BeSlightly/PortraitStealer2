@@ -68,7 +68,6 @@ public unsafe partial class DutySlotCacheService : IDisposable
             _subscribed = false;
             _log.Info("DutySlotCacheService unsubscribed.");
         }
-        ClearCache();
         _cacheLock.Dispose(); // Dispose ReaderWriterLockSlim
     }
 
@@ -104,6 +103,12 @@ public unsafe partial class DutySlotCacheService : IDisposable
         }
 
         while (_pendingFullDataQueue.TryDequeue(out _)) { }
+        FileHelpers.SafeDeleteFilesInDirectory(
+            _tempPortraitFolder,
+            "*.png",
+            _log,
+            "Manual Clear (Duty Cache Directory)"
+        );
         _log.Info("Duty slot cache manually cleared.");
     }
 

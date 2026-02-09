@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 
@@ -28,7 +27,6 @@ public class AdventurerPlateCacheService : IDisposable
         
         FileHelpers.SafeCreateDirectory(_adventurerPlateFolder, _log, "Adventurer Plate Cache");
 
-        CleanupOldFiles();
         CleanupLegacyFiles();
     }
 
@@ -95,43 +93,16 @@ public class AdventurerPlateCacheService : IDisposable
             }
             _cache.Clear();
         }
+
+        FileHelpers.SafeDeleteFilesInDirectory(
+            _adventurerPlateFolder,
+            "*.png",
+            _log,
+            "Manual cache clear (Adventurer Plate Directory)"
+        );
+
         _log.Info("Adventurer plate cache cleared.");
     }
-
-    private void CleanupOldFiles()
-    {
-        try
-        {
-            if (!Directory.Exists(_adventurerPlateFolder))
-                return;
-
-            var files = Directory.GetFiles(_adventurerPlateFolder, "*.png");
-            var currentCacheFiles = new HashSet<string>(_cache.Select(c => c.ImagePath));
-            
-            foreach (var file in files)
-            {
-                try
-                {
-                    var fileInfo = new FileInfo(file);
-                    if (fileInfo.CreationTime < DateTime.Now.AddDays(-7) || !currentCacheFiles.Contains(file))
-                    {
-                        File.Delete(file);
-                        _log.Debug($"Deleted old/orphaned adventurer plate file: {Path.GetFileName(file)}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _log.Warning(ex, $"Failed to delete old file: {Path.GetFileName(file)}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _log.Error(ex, "Failed to cleanup old adventurer plate files.");
-        }
-    }
-
-
 
     public string GetCacheDirectory() => _adventurerPlateFolder;
 

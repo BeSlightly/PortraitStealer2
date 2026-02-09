@@ -80,6 +80,7 @@ public sealed class Plugin : IDalamudPlugin
             PluginInterface
         );
         AdventurerPlateCacheService = new AdventurerPlateCacheService(Log, PluginInterface);
+        ClearAllCaches();
         _mainWindow = new MainWindow(this);
         _adventurerPlateCaptureOverlay = new AdventurerPlateCaptureOverlay(this);
         _windowSystem.AddWindow(_mainWindow);
@@ -127,6 +128,7 @@ public sealed class Plugin : IDalamudPlugin
         _windowSystem.RemoveAllWindows();
         _mainWindow?.Dispose();
         _adventurerPlateCaptureOverlay?.Dispose();
+        ClearAllCaches();
         DutySlotCacheService?.Dispose();
         _portraitCaptureService?.Dispose();
         AdventurerPlateCacheService?.Dispose();
@@ -380,6 +382,12 @@ public sealed class Plugin : IDalamudPlugin
     {
         PlateStolenInfo = null;
         PlateErrorMessage = null;
+    }
+
+    private void ClearAllCaches()
+    {
+        ClearDutyCache();
+        ClearAdventurerPlateCache();
     }
 
     public void ClearDutyCache() => DutySlotCacheService?.ClearCache();

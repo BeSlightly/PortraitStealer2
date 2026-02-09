@@ -35,4 +35,22 @@ public static class FileHelpers
             return false;
         }
     }
+
+    public static void SafeDeleteFilesInDirectory(string directoryPath, string searchPattern, IPluginLog log, string context)
+    {
+        if (string.IsNullOrEmpty(directoryPath) || !Directory.Exists(directoryPath))
+            return;
+
+        try
+        {
+            foreach (var file in Directory.GetFiles(directoryPath, searchPattern))
+            {
+                SafeDeleteFile(file, log, context);
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Warning(ex, $"[{context}] Failed to enumerate files in directory: {directoryPath}");
+        }
+    }
 }
