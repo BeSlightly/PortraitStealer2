@@ -424,7 +424,6 @@ public partial class MainWindow
                     _selectedCacheObjectId = 0;
                     _cachedPortraitDisplay.SetData(null);
                     ClearCopyStatus();
-                    _cacheFilterDirty = true;
                 }
             )
         ) { }

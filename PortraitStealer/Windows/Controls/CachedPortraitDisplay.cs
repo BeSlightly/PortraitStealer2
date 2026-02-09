@@ -221,15 +221,7 @@ public class CachedPortraitDisplay : IDisposable
             finally
             {
                 newCts.Dispose();
-                if (
-                    Interlocked.CompareExchange(ref _currentLoadOperationCts, null, newCts)
-                    == newCts
-                )
-                {
-                }
-                else
-                {
-                }
+                Interlocked.CompareExchange(ref _currentLoadOperationCts, null, newCts);
             }
         });
     }

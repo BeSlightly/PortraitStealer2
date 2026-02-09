@@ -193,12 +193,6 @@ public sealed class Plugin : IDalamudPlugin
                     {
                         try
                         {
-                            if (PortraitDataService == null || _portraitCaptureService == null || AdventurerPlateCacheService == null)
-                            {
-                                errorMessage = "Services unavailable (plugin may be shutting down)";
-                                return;
-                            }
-
                             info = PortraitDataService.TryGetAdventurerPlateData(out errorMessage);
                             if (info == null) return;
 

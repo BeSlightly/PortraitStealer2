@@ -32,7 +32,6 @@ public partial class MainWindow : Window, IDisposable
     private CachedPortraitData?[] _currentCacheState = new CachedPortraitData?[MaxDutySlots];
 
     private List<CachedPortraitData> _populatedCache = [];
-    private bool _cacheFilterDirty = true;
 
     private float _actionGroupHeightEstimate;
     private Vector2 _maxStatusSize;
@@ -109,45 +108,8 @@ public partial class MainWindow : Window, IDisposable
 
         CheckAgentValidity();
         var newState = _plugin.DutySlotCacheService.GetCurrentCacheState();
-
-        bool changed = false;
-        if (!ReferenceEquals(newState, _currentCacheState))
-        {
-            changed = true;
-        }
-        else
-        {
-            for (int i = 0; i < MaxDutySlots; ++i)
-            {
-                var oldHasValue = _currentCacheState[i].HasValue;
-                var newHasValue = newState[i].HasValue;
-                if (oldHasValue != newHasValue)
-                {
-                    changed = true;
-                    break;
-                }
-                else if (oldHasValue && newHasValue)
-                {
-                    // Compare the actual content, not just the references
-                    var oldEntry = _currentCacheState[i]!.Value;
-                    var newEntry = newState[i]!.Value;
-                    if (oldEntry.ClientObjectId != newEntry.ClientObjectId ||
-                        oldEntry.Timestamp != newEntry.Timestamp ||
-                        oldEntry.State != newEntry.State)
-                    {
-                        changed = true;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (changed || _cacheFilterDirty)
-        {
-            _currentCacheState = newState;
-            UpdatePopulatedCache();
-            _cacheFilterDirty = false;
-        }
+        _currentCacheState = newState;
+        UpdatePopulatedCache();
 
         if (
             _selectedCacheObjectId != 0

@@ -170,8 +170,6 @@ public unsafe partial class DutySlotCacheService
             )
             {
                 var capturedLog = _log;
-                var capturedTempFolder = _tempPortraitFolder;
-                var capturedObjectId = cachedObjectId;
                 var capturedPath = intendedImagePath;
                 var capturedPixelData = pixelDataForSave;
                 var capturedWidth = imageWidth;
@@ -181,8 +179,6 @@ public unsafe partial class DutySlotCacheService
                 System.Threading.Tasks.Task.Run(() =>
                     ImageSaveHelper.ProcessImageSaveInBackgroundAsync(
                         capturedLog,
-                        capturedTempFolder,
-                        capturedObjectId,
                         capturedPath,
                         capturedPixelData,
                         capturedWidth,

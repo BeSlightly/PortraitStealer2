@@ -13,8 +13,6 @@ public static class ImageSaveHelper
 {
     public static async Task ProcessImageSaveInBackgroundAsync(
         IPluginLog log,
-        string tempFolder,
-        uint objectId,
         string imagePath,
         byte[] pixelData,
         int width,

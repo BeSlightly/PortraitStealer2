@@ -19,8 +19,6 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using TerraFX.Interop.DirectX;
 using TerraFX.Interop.Windows;
-using Texture = FFXIVClientStructs.FFXIV.Client.Graphics.Kernel.Texture;
-
 namespace PortraitStealer.Services;
 
 public unsafe class PortraitCaptureService : IDisposable
@@ -77,18 +75,6 @@ public unsafe class PortraitCaptureService : IDisposable
             _pendingCapture = null;
         }
         pending?.Complete(null);
-    }
-
-    public Image<Bgra32>? GetAdventurerPlateImage(Texture* portraitTexture)
-    {
-        if (_deviceHandle == nint.Zero) return null;
-        if (portraitTexture == null || portraitTexture->D3D11Texture2D == null) return null;
-
-        var texture = (ID3D11Texture2D*)portraitTexture->D3D11Texture2D;
-        lock (_captureLock)
-        {
-            return ReadTextureToImage(texture, "Adventurer Plate");
-        }
     }
 
     public Image<Bgra32>? GetDutyPortraitImage(int partySlotIndex)
@@ -336,29 +322,6 @@ public unsafe class PortraitCaptureService : IDisposable
                 _sourceTexture->Release();
                 _sourceTexture = null;
             }
-        }
-    }
-
-
-    public Image<Bgra32>? CreateCompositedAdventurerPlateImageFromIcons(Texture* portraitTexture, ushort bannerFrame, ushort bannerDecoration)
-    {
-        try
-        {
-            _log.Debug($"CreateCompositedAdventurerPlateImageFromIcons: Loading icons for BannerFrame {bannerFrame}, BannerDecoration {bannerDecoration}");
-            
-            using var portraitImage = GetAdventurerPlateImage(portraitTexture);
-            if (portraitImage == null)
-            {
-                _log.Warning("CreateCompositedAdventurerPlateImageFromIcons: Failed to get portrait image");
-                return null;
-            }
-
-            return CreateCompositedAdventurerPlateImageFromIcons(portraitImage, bannerFrame, bannerDecoration);
-        }
-        catch (Exception ex)
-        {
-            _log.Error(ex, "CreateCompositedAdventurerPlateImageFromIcons: Exception during icon-based compositing");
-            return null;
         }
     }
 
