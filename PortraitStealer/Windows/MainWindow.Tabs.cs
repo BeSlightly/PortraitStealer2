@@ -48,38 +48,34 @@ public partial class MainWindow
         {
             var captureIcon = isCapturing ? FontAwesomeIcon.Spinner : FontAwesomeIcon.Camera;
             var captureText = isCapturing ? "Capturing..." : "Capture Portrait";
-            
-            if (
-                DrawIconButton(
-                    captureIcon,
-                    $"{captureText}##PlateCapture",
-                    Vector2.Zero,
-                    () =>
-                    {
-                        _plugin.StealAdventurerPlateData();
-                        ClearCopyStatus();
-                        SetSelectedPlate(null);
-                    }
-                )
-            ) { }
+
+            DrawIconButton(
+                captureIcon,
+                $"{captureText}##PlateCapture",
+                Vector2.Zero,
+                () =>
+                {
+                    _plugin.StealAdventurerPlateData();
+                    ClearCopyStatus();
+                    SetSelectedPlate(null);
+                }
+            );
             captureButtonHovered = ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled);
         }
 
         ImGui.SameLine();
 
-        if (
-            DrawIconButton(
-                FontAwesomeIcon.TrashAlt,
-                "Clear Cache##ClearAdventurerPlateCache",
-                Vector2.Zero,
-                () =>
-                {
-                    _plugin.ClearAdventurerPlateCache();
-                    ClearCopyStatus();
-                    SetSelectedPlate(null);
-                }
-            )
-        ) { }
+        DrawIconButton(
+            FontAwesomeIcon.TrashAlt,
+            "Clear Cache##ClearAdventurerPlateCache",
+            Vector2.Zero,
+            () =>
+            {
+                _plugin.ClearAdventurerPlateCache();
+                ClearCopyStatus();
+                SetSelectedPlate(null);
+            }
+        );
 
         ImGui.SameLine(0, MediumSpacing * ImUtf8.GlobalScale);
         var showOverlayButton = _plugin.Configuration.ShowCaptureButtonOnAdventurerPlate;
@@ -405,36 +401,30 @@ public partial class MainWindow
         }
     }
 
-    // --- Cached Duty Portraits Tab ---
     private void DrawCachedDutyPortraitsTabContent()
     {
         DrawInstructions(
             "Caches party member portraits when the 'Party Members' UI is open or updated.\nSelect an entry from the list below to view the portrait and copy its data."
         );
 
-        // Use DrawIconButton again
-        if (
-            DrawIconButton( // Uses instance helper
-                FontAwesomeIcon.TrashAlt,
-                "Clear Cache##ClearCacheBtn",
-                Vector2.Zero,
-                () =>
-                {
-                    _plugin.ClearDutyCache();
-                    _selectedCacheObjectId = 0;
-                    _cachedPortraitDisplay.SetData(null);
-                    ClearCopyStatus();
-                }
-            )
-        ) { }
+        DrawIconButton(
+            FontAwesomeIcon.TrashAlt,
+            "Clear Cache##ClearCacheBtn",
+            Vector2.Zero,
+            () =>
+            {
+                _plugin.ClearDutyCache();
+                _selectedCacheObjectId = 0;
+                _cachedPortraitDisplay.SetData(null);
+                ClearCopyStatus();
+            }
+        );
 
         DrawSectionSeparator("Cached Portraits");
 
-        // Use the cached _populatedCache
         float listWidth = 280 * ImUtf8.GlobalScale;
         float listHeight = ImGui.GetContentRegionAvail().Y - DefaultSpacing;
 
-        // --- Left Pane: Filtered List Container ---
         using (
             var listContainerChild = ImUtf8.Child(
                 "FilteredListPaneContainer",
@@ -451,7 +441,6 @@ public partial class MainWindow
 
         ImGui.SameLine(0, MediumSpacing);
 
-        // --- Right Pane: Details Container ---
         using (
             var detailChild = ImUtf8.Child(
                 "DetailPane",
@@ -487,41 +476,33 @@ public partial class MainWindow
 
         if (!populatedCache.Any())
         {
-            // --- START REPLACEMENT V4 ---
             var availableRegion = ImGui.GetContentRegionAvail();
-            // Ensure we have some space to draw in
             if (availableRegion.X <= 0 || availableRegion.Y <= 0)
                 return;
 
             using var textColor = ImRaii.PushColor(ImGuiCol.Text, ImGuiColors.DalamudGrey);
 
-            // Prepare content
             var message = "Cache is empty.\nOpen the Party Members UI\nin a duty to populate.";
 
-            // Calculate text size using the actual available width for wrapping
-            var wrapWidth = availableRegion.X - ImGui.GetStyle().WindowPadding.X * 2; // Account for padding
+            var wrapWidth = availableRegion.X - ImGui.GetStyle().WindowPadding.X * 2;
             var textSize = ImGui.CalcTextSize(message, true, wrapWidth);
 
-            // Calculate starting position for vertical centering
             float startY =
                 ImGui.GetCursorPosY()
                 + Math.Max(0, (availableRegion.Y - textSize.Y) * 0.5f);
 
-            // Calculate starting X for horizontal centering
             float startX =
                 ImGui.GetCursorPosX() + Math.Max(0, (availableRegion.X - textSize.X) * 0.5f);
 
-            // Draw Text (Centered horizontally within the block)
             ImGui.SetCursorPos(new Vector2(startX, startY));
-            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + wrapWidth); // Use calculated wrap width
+            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + wrapWidth);
             ImUtf8.TextWrapped(message);
             ImGui.PopTextWrapPos();
 
-            return; // Don't draw anything else in the list
-            // --- END REPLACEMENT V4 ---
+            return;
         }
 
-        var iconFont = UiBuilder.IconFont; // Cache outside loop
+        var iconFont = UiBuilder.IconFont;
 
         foreach (var entry in populatedCache)
         {

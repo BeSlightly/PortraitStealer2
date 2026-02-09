@@ -102,7 +102,7 @@ public unsafe partial class DutySlotCacheService : IDisposable
             _cacheLock.ExitWriteLock();
         }
 
-        while (_pendingFullDataQueue.TryDequeue(out _)) { }
+        _pendingFullDataQueue.Clear();
         FileHelpers.SafeDeleteFilesInDirectory(
             _tempPortraitFolder,
             "*.png",

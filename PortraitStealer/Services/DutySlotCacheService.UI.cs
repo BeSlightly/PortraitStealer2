@@ -39,10 +39,7 @@ public unsafe partial class DutySlotCacheService
 
         if (!isAgentValidNow)
         {
-            if (!_pendingFullDataQueue.IsEmpty)
-            {
-                while (_pendingFullDataQueue.TryDequeue(out _)) { }
-            }
+            _pendingFullDataQueue.Clear();
             return;
         }
 

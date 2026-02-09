@@ -265,10 +265,8 @@ public unsafe class PortraitDataService
 
         try
         {
-            // Corrected: Use TryGetRow
             if (_classJobSheet.TryGetRow(classJobId, out var jobRow))
             {
-                // jobRow is guaranteed to be non-null here if TryGetRow returns true for struct types that Lumina handles this way
                 string abbrString = jobRow.Abbreviation.ToString();
                 if (!string.IsNullOrEmpty(abbrString))
                 {

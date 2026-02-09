@@ -308,8 +308,7 @@ public class CachedPortraitDisplay : IDisposable
         }
         else if (loadedTexture != null && !success)
         {
-            if (!success)
-                loadedTexture?.Dispose();
+            loadedTexture.Dispose();
         }
     }
 
@@ -402,7 +401,6 @@ public class CachedPortraitDisplay : IDisposable
 
     private static void DrawLoadingSpinner(Vector2 center, float radius = 10f)
     {
-        // ... DrawLoadingSpinner remains the same ...
         float thickness = Math.Max(2f, radius * 0.2f) * ImGuiHelpers.GlobalScale;
         radius *= ImGuiHelpers.GlobalScale;
         var numSegments = 12;
