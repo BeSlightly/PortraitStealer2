@@ -3,7 +3,7 @@
     "Author": "BeSlightly",
     "Name": "Portrait Stealer",
     "InternalName": "PortraitStealer",
-    "AssemblyVersion": "0.0.0.5",
+    "AssemblyVersion": "0.0.0.6",
     "Description": "A plugin to export other player's portraits to PortraitHelper strings.",
     "RepoUrl": "https://github.com/BeSlightly/PortraitStealer2",
     "ApplicableVersion": "any",
@@ -15,12 +15,12 @@
     "Punchline": "Export other player's portrait data",
     "AcceptsFeedback": false,
     "IsTestingExclusive": "False",
-    "DownloadLinkInstall": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.5/latest.zip",
-    "DownloadLinkUpdate": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.5/latest.zip",
+    "DownloadLinkInstall": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.6/latest.zip",
+    "DownloadLinkUpdate": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.6/latest.zip",
     "DownloadLinkTesting": "https://github.com/BeSlightly/PortraitStealer2/releases/download/v0.0.0.4/latest.zip",
     "IconUrl": "https://raw.githubusercontent.com/BeSlightly/PortraitStealer2/main/images/logo.png",
-    "LastUpdate": 1771666151,
+    "LastUpdate": 1777502898,
     "Changelog": "Added attachable capture button to Adventurer Plates",
-    "DownloadCount": 280
+    "DownloadCount": 409
   }
 ]
