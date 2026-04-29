@@ -1,13 +1,12 @@
-<Project Sdk="Dalamud.NET.Sdk/14.0.2">
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
     <PropertyGroup>
         <Name>Portrait Stealer</Name>
-        <Version>0.0.0.5</Version>
+        <Version>0.0.0.6</Version>
         <Author>BeSlightly</Author>
         <RepoUrl>https://github.com/BeSlightly/PortraitStealer2</RepoUrl>
         <IconUrl>https://raw.githubusercontent.com/BeSlightly/PortraitStealer2/main/images/logo.png</IconUrl>
         <Punchline>Export other player's portrait data</Punchline>
         <Description>A plugin to export other player's portraits to PortraitHelper strings.</Description>
-        <Tags>portrait, stealer, portraitstealer</Tags>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     <ItemGroup>

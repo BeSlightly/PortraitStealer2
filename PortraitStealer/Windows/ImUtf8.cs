@@ -26,13 +26,13 @@ internal static class ImUtf8
     public static float TextHeightSpacing
         => ImGui.GetTextLineHeightWithSpacing();
 
-    public static ImRaii.IEndObject TabBar(string label, ImGuiTabBarFlags flags = ImGuiTabBarFlags.None)
+    public static ImRaii.TabBarDisposable TabBar(string label, ImGuiTabBarFlags flags = ImGuiTabBarFlags.None)
         => ImRaii.TabBar(label, flags);
 
-    public static ImRaii.IEndObject TabItem(string label, ImGuiTabItemFlags flags = ImGuiTabItemFlags.None)
+    public static ImRaii.TabItemDisposable TabItem(string label, ImGuiTabItemFlags flags = ImGuiTabItemFlags.None)
         => ImRaii.TabItem(label, flags);
 
-    public static ImRaii.IEndObject Child(
+    public static ImRaii.ChildDisposable Child(
         string id,
         Vector2 size,
         bool border = false,

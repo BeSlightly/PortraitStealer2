@@ -7,10 +7,7 @@
     "Description": "A plugin to export other player's portraits to PortraitHelper strings.",
     "RepoUrl": "https://github.com/BeSlightly/PortraitStealer2",
     "ApplicableVersion": "any",
-    "Tags": [
-      "portrait"
-    ],
-    "DalamudApiLevel": 14,
+    "DalamudApiLevel": 15,
     "LoadRequiredState": 0,
     "LoadSync": false,
     "CanUnloadAsync": false,
